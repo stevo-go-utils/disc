@@ -2,6 +2,7 @@ package webhooker
 
 import (
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/disgoorg/disgo/discord"
@@ -12,6 +13,7 @@ import (
 
 type Client struct {
 	recChMap *structures.SafeMap[string, *webhooker]
+	wg       *sync.WaitGroup
 	*ClientOpts
 }
 
@@ -23,6 +25,7 @@ type ClientOpts struct {
 	enableLogging       bool
 	logger              *slog.Logger
 	proxies             []string
+	useWg               bool
 }
 
 type ClientOptFunc func(opts *ClientOpts)
@@ -79,6 +82,12 @@ func ProxiesClientOpt(proxies ...string) ClientOptFunc {
 	}
 }
 
+func UseWgClientOpt() ClientOptFunc {
+	return func(co *ClientOpts) {
+		co.useWg = true
+	}
+}
+
 func NewClient(opts ...ClientOptFunc) *Client {
 	o := DefaultClientOpts()
 	for _, opt := range opts {
@@ -109,6 +118,7 @@ func SendRequestOpts(opts ...rest.RequestOpt) SendOptsFunc {
 type sendMsg struct {
 	msg  discord.WebhookMessageCreate
 	opts *SendOpts
+	done func()
 }
 
 func (c *Client) Send(webhookURL string, msg discord.WebhookMessageCreate, opts ...SendOptsFunc) (err error) {
@@ -126,6 +136,12 @@ func (c *Client) Send(webhookURL string, msg discord.WebhookMessageCreate, opts 
 	for _, opt := range opts {
 		opt(o)
 	}
-	w.ch <- sendMsg{msg: msg, opts: o}
+	if c.useWg {
+		c.wg.Wait()
+		c.wg.Add(1)
+		w.ch <- sendMsg{msg: msg, opts: o, done: func() { c.wg.Done() }}
+	} else {
+		w.ch <- sendMsg{msg: msg, opts: o}
+	}
 	return
 }
