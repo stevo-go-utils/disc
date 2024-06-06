@@ -95,6 +95,7 @@ func NewClient(opts ...ClientOptFunc) *Client {
 	}
 	return &Client{
 		recChMap:   structures.NewSafeMap[string, *webhooker](),
+		wg:         &sync.WaitGroup{},
 		ClientOpts: o,
 	}
 }
