@@ -2,7 +2,6 @@ package webhooker
 
 import (
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/disgoorg/disgo/discord"
@@ -13,7 +12,7 @@ import (
 
 type Client struct {
 	recChMap *structures.SafeMap[string, *webhooker]
-	wg       *sync.WaitGroup
+	asyncCh  chan asyncSendMsg
 	*ClientOpts
 }
 
@@ -25,7 +24,7 @@ type ClientOpts struct {
 	enableLogging       bool
 	logger              *slog.Logger
 	proxies             []string
-	useWg               bool
+	async               bool
 }
 
 type ClientOptFunc func(opts *ClientOpts)
@@ -82,22 +81,28 @@ func ProxiesClientOpt(proxies ...string) ClientOptFunc {
 	}
 }
 
-func UseWgClientOpt() ClientOptFunc {
+func AsyncClientOpt() ClientOptFunc {
 	return func(co *ClientOpts) {
-		co.useWg = true
+		co.async = true
 	}
 }
 
-func NewClient(opts ...ClientOptFunc) *Client {
+func NewClient(opts ...ClientOptFunc) (c *Client) {
 	o := DefaultClientOpts()
 	for _, opt := range opts {
 		opt(o)
 	}
-	return &Client{
+	c = &Client{
 		recChMap:   structures.NewSafeMap[string, *webhooker](),
-		wg:         &sync.WaitGroup{},
+		asyncCh:    make(chan asyncSendMsg),
 		ClientOpts: o,
 	}
+	go func() {
+		for msg := range c.asyncCh {
+			msg.w.send(sendMsg{msg: msg.msg, opts: msg.opts})
+		}
+	}()
+	return
 }
 
 type SendOpts struct {
@@ -119,28 +124,32 @@ func SendRequestOpts(opts ...rest.RequestOpt) SendOptsFunc {
 type sendMsg struct {
 	msg  discord.WebhookMessageCreate
 	opts *SendOpts
-	done func()
+}
+
+type asyncSendMsg struct {
+	msg  discord.WebhookMessageCreate
+	opts *SendOpts
+	w    *webhooker
 }
 
 func (c *Client) Send(webhookURL string, msg discord.WebhookMessageCreate, opts ...SendOptsFunc) (err error) {
 	w, ok := c.recChMap.Get(webhookURL)
 	if !ok {
-		w = c.newWebhooker()
 		c.recChMap.Set(webhookURL, w)
 		wc, err := disgo_webhook.NewWithURL(webhookURL)
 		if err != nil {
 			return err
 		}
-		go w.listen(wc)
+		w = c.newWebhooker(wc.URL())
+		c.recChMap.Set(webhookURL, w)
+		go w.listen()
 	}
 	o := DefaultSendOpts()
 	for _, opt := range opts {
 		opt(o)
 	}
-	if c.useWg {
-		c.wg.Wait()
-		c.wg.Add(1)
-		w.ch <- sendMsg{msg: msg, opts: o, done: func() { c.wg.Done() }}
+	if c.async {
+		c.asyncCh <- asyncSendMsg{msg: msg, opts: o, w: w}
 	} else {
 		w.ch <- sendMsg{msg: msg, opts: o}
 	}
