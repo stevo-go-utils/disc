@@ -7,6 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/matryer/is"
 	"github.com/stevo-go-utils/disc"
+	"github.com/stevo-go-utils/structures"
 )
 
 func TestPaginator(t *testing.T) {
@@ -30,18 +31,15 @@ func TestPaginator(t *testing.T) {
 	})
 	c.Handle()
 	c.AddAppCmdHandler("paginator", func(data disc.AppCmdHandlerData) error {
-		paginator := c.NewPaginatorBuilder().
+		paginator, paginatorHandlers := c.NewPaginatorBuilder().
 			SetTitle("Paginator").
 			SetDesc("This is a paginator message").
 			SetFieldsFunc(func(p *disc.Paginator) []*discordgo.MessageEmbedField {
 				fields := []*discordgo.MessageEmbedField{}
-				for i := (p.Page() - 1) * p.PerPage(); i < (p.Page())*p.PerPage(); i++ {
-					if i >= len(p.Items()) {
-						break
-					}
+				for i, item := range structures.ParseAnyArr[string](p.CurPageItems()) {
 					fields = append(fields, &discordgo.MessageEmbedField{
 						Name:   fmt.Sprintf("Field %d", i+1),
-						Value:  p.Items()[i].(string),
+						Value:  item,
 						Inline: false,
 					})
 				}
@@ -55,6 +53,8 @@ func TestPaginator(t *testing.T) {
 			SetInitialItems(list).
 			UseEphemeralResponse().
 			Build(5)
+
+		c.AddMsgComponentHandlers(paginatorHandlers, handlerErrCh)
 		data.S.InteractionRespond(data.I.Interaction, paginator.Response())
 		return nil
 	}, handlerErrCh)

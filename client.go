@@ -18,6 +18,8 @@ type Client struct {
 	msgComponentHandlerErrChs *structures.SafeMap[string, chan error]
 	appCmdAutoHandlerErrChs   *structures.SafeMap[string, chan error]
 	modalSubmitHandlerErrChs  *structures.SafeMap[string, chan error]
+	prefixHandler             PrefixHandler
+	suffixHandler             BaseHandler
 	handlerErrCh              chan error
 }
 
@@ -40,12 +42,26 @@ func NewClient(token string, appID string) (c *Client, err error) {
 		msgComponentHandlerErrChs: structures.NewSafeMap[string, chan error](),
 		appCmdAutoHandlerErrChs:   structures.NewSafeMap[string, chan error](),
 		modalSubmitHandlerErrChs:  structures.NewSafeMap[string, chan error](),
+		prefixHandler:             nil,
+		suffixHandler:             nil,
 		handlerErrCh:              nil,
 	}, nil
 }
 
 func (c *Client) Handle() {
 	c.sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if c.prefixHandler != nil {
+			stop, err := c.prefixHandler(BaseHandlerData{C: c, S: s, I: i})
+			if err != nil {
+				if c.handlerErrCh != nil {
+					c.handlerErrCh <- err
+				}
+				return
+			}
+			if stop {
+				return
+			}
+		}
 		switch i.Type {
 		case discordgo.InteractionPing:
 			if handler, ok := c.pingHandlers.Get(i.ApplicationCommandData().Name); ok {
@@ -124,6 +140,15 @@ func (c *Client) Handle() {
 				}()
 			}
 		}
+		if c.suffixHandler != nil {
+			err := c.suffixHandler(BaseHandlerData{C: c, S: s, I: i})
+			if err != nil {
+				if c.handlerErrCh != nil {
+					c.handlerErrCh <- err
+				}
+				return
+			}
+		}
 	})
 }
 
@@ -143,6 +168,12 @@ func (c *Client) AddPingHandlers(handlers map[string]PingHandler, handlerErrCh .
 	}
 }
 
+func (c *Client) RemovePingHandlers(names ...string) {
+	for _, name := range names {
+		c.pingHandlers.Delete(name)
+	}
+}
+
 func (c *Client) AddAppCmdHandler(name string, handler AppCmdHandler, handlerErrCh ...chan error) {
 	if len(handlerErrCh) == 1 {
 		c.appCmdHandlerErrChs.Set(name, handlerErrCh[0])
@@ -156,6 +187,12 @@ func (c *Client) AddAppCmdHandlers(handlers map[string]AppCmdHandler, handlerErr
 			c.appCmdHandlerErrChs.Set(name, handlerErrCh[0])
 		}
 		c.appCmdHandlers.Set(name, handler)
+	}
+}
+
+func (c *Client) RemoveAppCmdHandlers(names ...string) {
+	for _, name := range names {
+		c.appCmdHandlers.Delete(name)
 	}
 }
 
@@ -175,6 +212,12 @@ func (c *Client) AddMsgComponentHandlers(handlers map[string]MsgComponentHandler
 	}
 }
 
+func (c *Client) RemoveMsgComponentHandlers(names ...string) {
+	for _, name := range names {
+		c.msgComponentHandlers.Delete(name)
+	}
+}
+
 func (c *Client) AddAppCmdAutoHandler(name string, handler AppCmdAutoHandler, handlerErrCh ...chan error) {
 	if len(handlerErrCh) == 1 {
 		c.appCmdAutoHandlerErrChs.Set(name, handlerErrCh[0])
@@ -188,6 +231,12 @@ func (c *Client) AddAppCmdAutoHandlers(handlers map[string]AppCmdAutoHandler, ha
 			c.appCmdAutoHandlerErrChs.Set(name, handlerErrCh[0])
 		}
 		c.appCmdAutoHandlers.Set(name, handler)
+	}
+}
+
+func (c *Client) RemoveAppCmdAutoHandlers(names ...string) {
+	for _, name := range names {
+		c.appCmdAutoHandlers.Delete(name)
 	}
 }
 
@@ -205,6 +254,36 @@ func (c *Client) AddModalSubmitHandlers(handlers map[string]ModalSubmitHandler, 
 		}
 		c.modalSubmitHandlers.Set(name, handler)
 	}
+}
+
+func (c *Client) RemoveModalSubmitHandlers(names ...string) {
+	for _, name := range names {
+		c.modalSubmitHandlers.Delete(name)
+	}
+}
+
+func (c *Client) SetPrefixHandler(handler PrefixHandler) {
+	c.prefixHandler = handler
+}
+
+func (c *Client) RemovePrefixHandler() {
+	c.prefixHandler = nil
+}
+
+func (c *Client) PrefixHandler() (handler PrefixHandler) {
+	return c.prefixHandler
+}
+
+func (c *Client) SetSuffixHandler(handler BaseHandler) {
+	c.suffixHandler = handler
+}
+
+func (c *Client) RemoveSuffixHandler() {
+	c.suffixHandler = nil
+}
+
+func (c *Client) SuffixHandler() (handler BaseHandler) {
+	return c.suffixHandler
 }
 
 func (c *Client) SetHandlerErrorCh(ch chan error) {

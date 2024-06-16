@@ -52,7 +52,6 @@ type PaginatorBuilder struct {
 	OnResp            func(*Paginator) error
 	OnRespErrResp     *discordgo.InteractionResponseData
 	OnRespErrRespFunc func(*Paginator, error) *discordgo.InteractionResponseData
-	HandlerErrch      chan error
 }
 
 func (c *Client) NewPaginatorBuilder() *PaginatorBuilder {
@@ -61,7 +60,7 @@ func (c *Client) NewPaginatorBuilder() *PaginatorBuilder {
 	}
 }
 
-func (b *PaginatorBuilder) Build(perPage int) (p *Paginator) {
+func (b *PaginatorBuilder) Build(perPage int) (p *Paginator, msgComponentHandlers map[string]MsgComponentHandler) {
 	p = &Paginator{
 		page:             1,
 		perPage:          perPage,
@@ -90,11 +89,7 @@ func (b *PaginatorBuilder) Build(perPage int) (p *Paginator) {
 		}
 		return
 	}
-	errChs := []chan error{}
-	if b.HandlerErrch != nil {
-		errChs = append(errChs, b.HandlerErrch)
-	}
-	b.Client.AddMsgComponentHandlers(map[string]MsgComponentHandler{
+	return p, map[string]MsgComponentHandler{
 		p.customID + "-prev": func(data MsgComponentHandlerData) error {
 			sent, err := onPage(data.S, data.I)
 			if err != nil {
@@ -117,8 +112,7 @@ func (b *PaginatorBuilder) Build(perPage int) (p *Paginator) {
 			p.page++
 			return data.S.InteractionRespond(data.I.Interaction, p.UpdateResponse())
 		},
-	}, errChs...)
-	return p
+	}
 }
 
 func (p Paginator) Items() []any {
