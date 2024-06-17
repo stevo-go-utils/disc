@@ -320,8 +320,8 @@ func (c *Client) Open() (err error) {
 	return c.sess.Open()
 }
 
-func (c *Client) Close() {
-	c.sess.Close()
+func (c *Client) Close() (err error) {
+	return c.sess.Close()
 }
 
 func (c Client) Sess() (sess *discordgo.Session) {
