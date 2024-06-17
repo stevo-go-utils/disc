@@ -23,8 +23,20 @@ type Client struct {
 	handlerErrCh              chan error
 }
 
-func NewClient(token string, appID string) (c *Client, err error) {
-	sess, err := discordgo.New("Bot " + token)
+type ClientType string
+
+const (
+	ClientTypeBot    ClientType = "Bot "
+	ClientTypeBearer ClientType = "Bearer "
+	ClientTypeNone   ClientType = ""
+)
+
+func NewClient(token string, appID string, clientType ...ClientType) (c *Client, err error) {
+	defaultClientType := ClientTypeBot
+	if len(clientType) == 1 {
+		defaultClientType = clientType[0]
+	}
+	sess, err := discordgo.New(string(defaultClientType) + token)
 	if err != nil {
 		return c, err
 	}
