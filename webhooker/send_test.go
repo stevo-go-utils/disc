@@ -9,7 +9,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/matryer/is"
 	"github.com/stevo-go-utils/disc/webhooker"
-	"github.com/stevohuncho/gofile"
 )
 
 func init() {
@@ -22,10 +21,6 @@ func init() {
 func TestSend(t *testing.T) {
 	is := is.New(t)
 
-	proxies, err := gofile.SimpleCsv("proxies.csv")
-	is.NoErr(err)
-	fmt.Println(proxies)
-
 	errCh := make(chan error)
 	go func() {
 		for err := range errCh {
@@ -36,7 +31,6 @@ func TestSend(t *testing.T) {
 		webhooker.ErrChClientOpt(errCh),
 		webhooker.MaxRetriesClientOpt(3),
 		webhooker.EnableLoggingClientOpt(),
-		webhooker.ProxiesClientOpt(proxies...),
 	)
 	for i := 0; i < 1000; i++ {
 		err := c.Send(os.Getenv("WEBHOOK_URL"), discord.NewWebhookMessageCreateBuilder().SetContent(fmt.Sprint(i)).Build())

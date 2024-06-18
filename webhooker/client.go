@@ -23,7 +23,6 @@ type ClientOpts struct {
 	maxRateLimitRetries int
 	enableLogging       bool
 	logger              *slog.Logger
-	proxies             []string
 	async               bool
 }
 
@@ -72,12 +71,6 @@ func EnableLoggingClientOpt() ClientOptFunc {
 func LoggerClientOpt(logger *slog.Logger) ClientOptFunc {
 	return func(co *ClientOpts) {
 		co.logger = logger
-	}
-}
-
-func ProxiesClientOpt(proxies ...string) ClientOptFunc {
-	return func(co *ClientOpts) {
-		co.proxies = proxies
 	}
 }
 

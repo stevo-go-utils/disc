@@ -9,25 +9,21 @@ import (
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/go-resty/resty/v2"
-	"github.com/stevo-go-utils/structures"
 	"github.com/tidwall/gjson"
 )
 
 type webhooker struct {
-	ch            chan sendMsg
-	proxyBalancer *structures.Balancer[string]
-	url           string
+	ch  chan sendMsg
+	url string
 	*ClientOpts
 }
 
 func (c *Client) newWebhooker(url string) (w *webhooker) {
 	w = &webhooker{
-		ch:            make(chan sendMsg),
-		proxyBalancer: structures.NewBalancer[string](),
-		url:           url,
-		ClientOpts:    c.ClientOpts,
+		ch:         make(chan sendMsg),
+		url:        url,
+		ClientOpts: c.ClientOpts,
 	}
-	w.proxyBalancer.Add(c.proxies...)
 	return
 }
 
@@ -50,13 +46,6 @@ func (w *webhooker) send(msg sendMsg) {
 	}
 
 	rc := resty.New()
-	proxyResp, ok := w.proxyBalancer.Use()
-	if ok {
-		proxySplit := strings.Split(proxyResp.Data(), ":")
-		if len(proxySplit) == 4 {
-			rc.SetProxy(fmt.Sprintf("http://%s:%s@%s:%s", proxySplit[2], proxySplit[3], proxySplit[0], proxySplit[1]))
-		}
-	}
 
 	retries := 0
 	rateLimitRetries := 0

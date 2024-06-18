@@ -10,12 +10,10 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/matryer/is v1.4.1
 	github.com/stevo-go-utils/structures v0.0.0-20240509035802-8a52a6648371
-	github.com/stevohuncho/gofile v1.0.3
 	github.com/tidwall/gjson v1.17.1
 )
 
 require (
-	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/disgoorg/json v1.1.0 // indirect
 	github.com/disgoorg/snowflake/v2 v2.0.1 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
