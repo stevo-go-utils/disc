@@ -137,10 +137,14 @@ func (p Paginator) LastPage() int {
 
 func (p Paginator) CurPageItems() []any {
 	start := (p.page - 1) * p.perPage
+	if start > len(p.items) {
+		start = len(p.items)
+	}
 	end := start + p.perPage
 	if end > len(p.items) {
 		end = len(p.items)
 	}
+
 	return p.items[start:end]
 }
 
