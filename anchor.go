@@ -53,7 +53,7 @@ func (c *Client) Anchor(channelID string, msg *discordgo.MessageSend, opts ...An
 		if len(invaldMsgIDs) == 0 {
 			break
 		}
-		err = c.sess.ChannelMessagesBulkDelete(channelID, invaldMsgIDs)
+		err = c.anchorDeleteMessages(channelID, invaldMsgIDs)
 		if err != nil {
 			return err
 		}
@@ -62,6 +62,19 @@ func (c *Client) Anchor(channelID string, msg *discordgo.MessageSend, opts ...An
 		_, err = c.sess.ChannelMessageSendComplex(channelID, msg)
 	}
 	return
+}
+
+func (c *Client) anchorDeleteMessages(channelID string, invalidMsgIDs []string) (err error) {
+	err = c.sess.ChannelMessagesBulkDelete(channelID, invalidMsgIDs)
+	if err != nil {
+		for _, msgID := range invalidMsgIDs {
+			err = c.sess.ChannelMessageDelete(channelID, msgID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Client) Anchors(channelID string, msgs []*discordgo.MessageSend, opts ...AnchorOptFunc) (err error) {
