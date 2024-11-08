@@ -139,7 +139,7 @@ func SendWithWait[T discord.WebhookMessageCreate | []byte | string](webhookURL s
 			}
 		case *discord.MultipartBuffer:
 			bodyBytes = body.Buffer.Bytes()
-			contentType = ContentTypeMultipart
+			contentType = ContentType(body.ContentType)
 		}
 	case string:
 		bodyBytes = []byte(payload)
@@ -210,7 +210,7 @@ func Edit[T discord.WebhookMessageUpdate | []byte | string](webhookURL string, m
 			}
 		case *discord.MultipartBuffer:
 			bodyBytes = body.Buffer.Bytes()
-			contentType = ContentTypeMultipart
+			contentType = ContentType(body.ContentType)
 		}
 	case string:
 		bodyBytes = []byte(payload)
