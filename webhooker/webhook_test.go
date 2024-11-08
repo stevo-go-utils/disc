@@ -1,6 +1,7 @@
 package webhooker_test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"testing"
@@ -51,4 +52,22 @@ func TestWebhookRateLimit(t *testing.T) {
 			Content: structures.Ptr(fmt.Sprintf("test %d", i+1)),
 		}, webhooker.RateLimitWebhookOpt(1, time.Second*1)))
 	}
+}
+
+func TestWebhookWithAttachments(t *testing.T) {
+	is := is.New(t)
+	is.NoErr(godotenv.Load())
+	webhookURL := os.Getenv("WEBHOOK_URL")
+
+	msg := discord.WebhookMessageCreate{
+		Content: "test",
+		Files: []*discord.File{
+			{
+				Name:   "test.txt",
+				Reader: bytes.NewReader([]byte("test")),
+			},
+		},
+	}
+
+	is.NoErr(webhooker.Send(webhookURL, msg))
 }

@@ -73,7 +73,7 @@ func Send[T discord.WebhookMessageCreate | []byte | string](webhookURL string, p
 			}
 		case *discord.MultipartBuffer:
 			bodyBytes = body.Buffer.Bytes()
-			contentType = ContentTypeMultipart
+			contentType = ContentType(body.ContentType)
 		}
 	case string:
 		bodyBytes = []byte(payload)
